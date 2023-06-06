@@ -1,9 +1,11 @@
 //jshint esversion:6
 const express = require("express");
 const bodyParser = require("body-parser");
-const date = require(__dirname+ "/date.js");
-const app = express();
+const  mongoose = require("mongoose");
+const {Schema} = mongoose;
 
+
+const app = express();
 app.set("view engine", "ejs");
 
 app.use(bodyParser.urlencoded({extended:true}));
@@ -14,29 +16,58 @@ app.listen(3000,
     console.log("Server started on port 3000"); }
 );
 
-let items = ["Buy Food","Cook Food","Eat Food"];
-let workItems = [];
+mongoose.connect('mongodb://127.0.0.1:27017/todolistDB', {useNewUrlParser : true});
+ 
+const itemsSchema = new Schema({
+  name :  String
+});
+ 
+const Item = mongoose.model('Item', itemsSchema);
+const item1 = new Item({
+  _id : 1,
+  name:"Welcome to your ToDo List!"});
+const item2 = new Item({
+  _id : 2,
+  name:"Hit the + button to add new item."});
+const item3 = new Item({
+  _id :3,
+  name:"<-- Hit this to delete an item."});
+ 
+const defaultItems = [item1, item2, item3];
+
+ 
+
+
 app.get("/", function(req,res)
 {
-   
-    let day = date.getDate();
-    res.render("list", {listTitle: day,newListItems: items });
-   
+    Item.find().then(function(foundItems){
+        if (foundItems.length === 0) {
+          Item.insertMany(defaultItems).then(function(){
+            console.log("Succesfully saved all the items to todolistDB");
+          })
+          .catch(function (err) {
+            console.log(err);
+          });
+          res.redirect("/");
+        } else {
+          res.render("list", {listTitle: "Today", newListItems: foundItems});
+        }
+   });
 });
 
 app.post("/", function(req,res)
 {   
-    let item = req.body.newItem;
-    console.log(req.body.list)
-    if (req.body.list === "Work List")
-    {
-        workItems.push(item);
-        res.redirect("/work")
-    }
-    else{
-    items.push(item);
-    res.redirect("/");
-    }
+    const itemName = req.body.newItem;
+    
+    const item = new Item(
+        {
+            name: itemName
+        });
+
+        item.save();
+
+        res.redirect("/")
+    
 });
 
 app.get("/work", function(req,res){
